@@ -1,55 +1,40 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { ActionButton } from '@/components/action-button';
+import { SessionPlaceRefresh } from '@/components/session-place-refresh';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { DayPlan, SampleLeg } from '@/types/itinerary';
+import { hasCoordinates } from '@/lib/places';
+import type { AddPlaceResult } from '@/state/itinerary-context';
+import type { DayPlan, PlaceDraft, SampleLeg } from '@/types/itinerary';
 
 function findSampleLeg(day: DayPlan, fromStopId: string, toStopId: string): SampleLeg | undefined {
   return day.sampleLegs.find((leg) => leg.fromStopId === fromStopId && leg.toStopId === toStopId);
 }
 
-function ActionButton({
-  label,
-  disabled,
-  onPress,
-  danger = false,
-}: {
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-  danger?: boolean;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        {
-          backgroundColor: theme.backgroundSelected,
-          opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
-        },
-      ]}>
-      <ThemedText type="smallBold" style={{ color: danger ? theme.danger : theme.text }}>
-        {label}
-      </ThemedText>
-    </Pressable>
-  );
-}
-
 export function StopList({
   day,
+  otherDays,
   onMove,
   onRemove,
+  onMoveToDay,
+  onMoveToWishlist,
+  onAttachSession,
+  onSaveManual,
+  proximity,
+  emptyHint,
 }: {
   day: DayPlan;
+  otherDays: { id: string; dateLabel: string }[];
   onMove: (stopId: string, direction: -1 | 1) => void;
   onRemove: (stopId: string) => void;
+  onMoveToDay: (stopId: string, dayId: string) => void;
+  onMoveToWishlist: (stopId: string) => void;
+  onAttachSession: (place: PlaceDraft) => AddPlaceResult;
+  onSaveManual: (stopId: string, latitude: number, longitude: number) => 'saved' | 'invalid' | 'missing';
+  proximity: { latitude: number; longitude: number } | null;
+  emptyHint: string;
 }) {
   const theme = useTheme();
 
@@ -58,7 +43,7 @@ export function StopList({
       <View style={[styles.empty, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="smallBold">这一天还没有地点</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          在下面填名称和经纬度，地点会加到这一天的最后。
+          {emptyHint}
         </ThemedText>
       </View>
     );
@@ -72,9 +57,9 @@ export function StopList({
 
         return (
           <View key={stop.id} style={styles.item}>
-            {previous ? (
+            {leg ? (
               <ThemedText type="small" themeColor="textSecondary" style={styles.leg}>
-                {leg ? `${leg.label} · ${leg.minutes} 分钟` : '这两站之间还没有填写用时'}
+                {leg.label} · {leg.minutes} 分钟
               </ThemedText>
             ) : null}
             <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
@@ -91,8 +76,23 @@ export function StopList({
                   </ThemedText>
                 ) : null}
                 <ThemedText type="small" themeColor="textSecondary">
-                  {stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)}
+                  {hasCoordinates(stop)
+                    ? `${stop.latitude.toFixed(4)}, ${stop.longitude.toFixed(4)}`
+                    : '重新打开后还没画上。搜索结果不能保存。'}
                 </ThemedText>
+                {!hasCoordinates(stop) ? (
+                  <SessionPlaceRefresh
+                    query={stop.name}
+                    proximity={proximity}
+                    onAttach={onAttachSession}
+                    onSaveManual={(latitude, longitude) => onSaveManual(stop.id, latitude, longitude)}
+                  />
+                ) : null}
+                {stop.coordinateSource === 'mapbox' && hasCoordinates(stop) ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    这个坐标只在本次打开时有效。
+                  </ThemedText>
+                ) : null}
                 <View style={styles.actions}>
                   <ActionButton label="上移" disabled={index === 0} onPress={() => onMove(stop.id, -1)} />
                   <ActionButton
@@ -100,6 +100,14 @@ export function StopList({
                     disabled={index === day.stops.length - 1}
                     onPress={() => onMove(stop.id, 1)}
                   />
+                  <ActionButton label="移回想去" onPress={() => onMoveToWishlist(stop.id)} />
+                  {otherDays.map((other) => (
+                    <ActionButton
+                      key={other.id}
+                      label={`移到${other.dateLabel}`}
+                      onPress={() => onMoveToDay(stop.id, other.id)}
+                    />
+                  ))}
                   <ActionButton label="删除" danger onPress={() => onRemove(stop.id)} />
                 </View>
               </View>
@@ -146,13 +154,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.two,
     marginTop: Spacing.one,
-  },
-  action: {
-    minHeight: 40,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   empty: {
     borderRadius: 16,

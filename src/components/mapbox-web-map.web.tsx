@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { useMapFrameHeight } from '@/hooks/use-map-frame';
 import { useTheme } from '@/hooks/use-theme';
 import { buildMapHtml } from '@/lib/mapbox-html';
 import type { Stop } from '@/types/itinerary';
@@ -18,10 +19,13 @@ export function MapboxWebMap({
   onFail: () => void;
 }) {
   const theme = useTheme();
+  const frameHeight = useMapFrameHeight();
+  const stopKey = stops.map((stop) => `${stop.id}:${stop.latitude}:${stop.longitude}`).join('|');
 
   return (
-    <View style={[styles.frame, { backgroundColor: theme.mapSurface }]}>
+    <View style={[styles.frame, { backgroundColor: theme.mapSurface, height: frameHeight }]}>
       {createElement('iframe', {
+        key: stopKey,
         title: 'Mapbox 地图',
         srcDoc: buildMapHtml(token, stops),
         style: {

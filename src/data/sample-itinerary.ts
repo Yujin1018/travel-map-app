@@ -8,6 +8,8 @@ export function createSampleItinerary(): Itinerary {
   return {
     id: 'sample-trip',
     title: '我的行程',
+    activeDayId: 'day-kyoto',
+    wishlist: [],
     days: [
       {
         id: 'day-kyoto',
@@ -20,6 +22,7 @@ export function createSampleItinerary(): Itinerary {
             latitude: 34.96714,
             longitude: 135.77267,
             note: '从这里出发',
+            coordinateSource: 'sample',
           },
           {
             id: 'stop-kiyomizu',
@@ -27,6 +30,7 @@ export function createSampleItinerary(): Itinerary {
             latitude: 34.99486,
             longitude: 135.78505,
             note: '第二个停留点',
+            coordinateSource: 'sample',
           },
           {
             id: 'stop-yasaka',
@@ -34,6 +38,7 @@ export function createSampleItinerary(): Itinerary {
             latitude: 35.00363,
             longitude: 135.77857,
             note: '这一天的最后一站',
+            coordinateSource: 'sample',
           },
         ],
         sampleLegs: [

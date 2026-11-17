@@ -4,7 +4,9 @@ import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useMapFrameHeight } from '@/hooks/use-map-frame';
 import { useTheme } from '@/hooks/use-theme';
+import { hasCoordinates } from '@/lib/places';
 import type { Stop } from '@/types/itinerary';
 
 type Point = {
@@ -14,7 +16,8 @@ type Point = {
   y: number;
 };
 
-function projectStops(stops: Stop[], width: number, height: number): Point[] {
+function projectStops(input: Stop[], width: number, height: number): Point[] {
+  const stops = input.filter(hasCoordinates);
   if (stops.length === 0 || width <= 0 || height <= 0) {
     return [];
   }
@@ -48,8 +51,10 @@ function projectStops(stops: Stop[], width: number, height: number): Point[] {
 
 export function SchematicMap({ stops }: { stops: Stop[] }) {
   const theme = useTheme();
+  const frameHeight = useMapFrameHeight();
+  const located = stops.filter(hasCoordinates);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const points = projectStops(stops, size.width, size.height);
+  const points = projectStops(located, size.width, size.height);
   const grid: number[] = [];
   for (let position = 0; position <= Math.max(size.width, size.height); position += 36) {
     grid.push(position);
@@ -57,7 +62,7 @@ export function SchematicMap({ stops }: { stops: Stop[] }) {
 
   return (
     <View
-      style={[styles.frame, { backgroundColor: theme.mapSurface }]}
+      style={[styles.frame, { backgroundColor: theme.mapSurface, height: frameHeight }]}
       onLayout={(event) => {
         const { width, height } = event.nativeEvent.layout;
         setSize({ width, height });
