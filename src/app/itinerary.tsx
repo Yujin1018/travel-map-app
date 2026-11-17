@@ -13,18 +13,9 @@ import { ThemedText } from '@/components/themed-text';
 import { WishlistList } from '@/components/wishlist-list';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { averageCoordinate, uniquePlaces } from '@/lib/places';
+import { averageCoordinate, hasCoordinates, parseCoordinate, uniquePlaces } from '@/lib/places';
 import { useItinerary } from '@/state/itinerary-context';
 import type { DayPlan } from '@/types/itinerary';
-
-function parseCoordinate(value: string): number | null {
-  const cleaned = value.trim().replace(/，/g, '.').replace(/。/g, '.').replace(/\s/g, '');
-  if (!/^[-+]?\d+(\.\d+)?$/.test(cleaned)) {
-    return null;
-  }
-  const number = Number(cleaned);
-  return Number.isFinite(number) ? number : null;
-}
 
 export default function ItineraryScreen() {
   const theme = useTheme();
@@ -49,6 +40,7 @@ export default function ItineraryScreen() {
     moveWishlistToDay,
     applyPlan,
     replaceItinerary,
+    saveManualCoordinates,
     resetToSample,
   } = useItinerary();
   const [name, setName] = useState('');
@@ -163,6 +155,17 @@ export default function ItineraryScreen() {
 
           <DayTitleField day={activeDay} onRename={(title) => renameDay(activeDay.id, title)} />
 
+          {activeDay.stops.some((stop) => !hasCoordinates(stop)) ? (
+            <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+              <ThemedText type="smallBold">
+                有 {activeDay.stops.filter((stop) => !hasCoordinates(stop)).length} 个地点这次还没画上
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                点「重新查找」，再点一个结果，只在这次打开时出现在地图上。要刷新后还在，请在同一个地点里填写纬度和经度，再点「保存坐标」。搜索到的坐标不能保存。
+              </ThemedText>
+            </View>
+          ) : null}
+
           <StopList
             day={activeDay}
             otherDays={itinerary.days
@@ -187,6 +190,7 @@ export default function ItineraryScreen() {
             }}
             proximity={proximity}
             onAttachSession={(place) => addToDay(activeDay.id, place)}
+            onSaveManual={saveManualCoordinates}
           />
           {editMessage ? (
             <ThemedText type="small" style={{ color: theme.danger }}>
@@ -243,6 +247,7 @@ export default function ItineraryScreen() {
             onRemove={removeWishlistPlace}
             proximity={proximity}
             onAttachSession={addToWishlist}
+            onSaveManual={saveManualCoordinates}
           />
           <AutoPlan places={planningPlaces} onApply={applyPlan} />
           <ItineraryBackup itinerary={itinerary} onReplace={replaceItinerary} />
@@ -250,7 +255,7 @@ export default function ItineraryScreen() {
           <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="smallBold">手动填写坐标</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              搜索没有结果，或还没配置令牌时，可以直接填写名称和经纬度。手填的坐标会保存在这台设备上。
+              这是新加一个地点。已经在上面的地点，请在那个地点里填纬度和经度。手填并保存的坐标会留在这台设备上。
             </ThemedText>
             <TextInput
               value={name}

@@ -16,6 +16,7 @@ export function WishlistList({
   onMoveToDay,
   onRemove,
   onAttachSession,
+  onSaveManual,
   proximity,
 }: {
   places: Stop[];
@@ -23,6 +24,7 @@ export function WishlistList({
   onMoveToDay: (stopId: string, dayId: string) => 'moved' | 'duplicate' | 'missing';
   onRemove: (stopId: string) => void;
   onAttachSession: (place: PlaceDraft) => AddPlaceResult;
+  onSaveManual: (stopId: string, latitude: number, longitude: number) => 'saved' | 'invalid' | 'missing';
   proximity: { latitude: number; longitude: number } | null;
 }) {
   const theme = useTheme();
@@ -58,10 +60,15 @@ export function WishlistList({
           <ThemedText type="small" themeColor="textSecondary">
             {hasCoordinates(place)
               ? `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}${place.coordinateSource === 'mapbox' ? ' · 仅本次打开' : ''}`
-              : '重新打开后还没有坐标。点下面再查一次，或手填经纬度才会一直留在地图上。'}
+              : '重新打开后还没画上。搜索结果不能保存。'}
           </ThemedText>
           {!hasCoordinates(place) ? (
-            <SessionPlaceRefresh query={place.name} proximity={proximity} onAttach={onAttachSession} />
+            <SessionPlaceRefresh
+              query={place.name}
+              proximity={proximity}
+              onAttach={onAttachSession}
+              onSaveManual={(latitude, longitude) => onSaveManual(place.id, latitude, longitude)}
+            />
           ) : null}
           <View style={styles.actions}>
             {days.map((day) => (

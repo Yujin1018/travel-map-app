@@ -63,6 +63,31 @@ export function averageCoordinate(
   return { latitude, longitude };
 }
 
+/** 接受 35.7148，也接受中文逗号写成的小数。 */
+export function parseCoordinate(value: string): number | null {
+  const cleaned = value.trim().replace(/，/g, '.').replace(/。/g, '.').replace(/\s/g, '');
+  if (!/^[-+]?\d+(\.\d+)?$/.test(cleaned)) {
+    return null;
+  }
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : null;
+}
+
+/** 把手填的经纬度写到已有地点上。之后可以保存，不再带搜索接口的编号。 */
+export function withManualCoordinates(stop: Stop, latitude: number, longitude: number): Stop {
+  const next: Stop = {
+    id: stop.id,
+    name: placeLabel(stop),
+    latitude,
+    longitude,
+    coordinateSource: 'manual',
+  };
+  if (stop.note && stop.coordinateSource !== 'mapbox') {
+    next.note = stop.note;
+  }
+  return next;
+}
+
 export function draftIsValid(draft: PlaceDraft): boolean {
   const name = draft.name.trim();
   if (!name || name.length > 80) {

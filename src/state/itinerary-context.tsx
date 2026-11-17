@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { createSampleItinerary } from '@/data/sample-itinerary';
 import { itineraryForStorage } from '@/lib/itinerary-storage';
-import { draftIsValid, hasCoordinates, isSamePlace, placeLabel } from '@/lib/places';
+import { draftIsValid, hasCoordinates, isSamePlace, placeLabel, withManualCoordinates } from '@/lib/places';
 import { parseItinerary } from '@/state/parse-itinerary';
 import type { DayPlan, Itinerary, PlaceDraft, SampleLeg, Stop } from '@/types/itinerary';
 
@@ -38,6 +38,7 @@ type ItineraryContextValue = {
   moveWishlistToDay: (stopId: string, dayId: string) => 'moved' | 'duplicate' | 'missing';
   applyPlan: (groups: Stop[][]) => void;
   replaceItinerary: (next: Itinerary) => 'replaced' | 'invalid';
+  saveManualCoordinates: (stopId: string, latitude: number, longitude: number) => 'saved' | 'invalid' | 'missing';
   resetToSample: () => void;
 };
 
@@ -514,6 +515,27 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     setItinerary(createSampleItinerary());
   }, []);
 
+  const saveManualCoordinates = useCallback(
+    (stopId: string, latitude: number, longitude: number): 'saved' | 'invalid' | 'missing' => {
+      if (!itinerary) {
+        return 'missing';
+      }
+      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return 'invalid';
+      }
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return 'invalid';
+      }
+      const existing = allStops(itinerary).find((place) => place.id === stopId);
+      if (!existing) {
+        return 'missing';
+      }
+      setItinerary(replaceStop(itinerary, stopId, withManualCoordinates(existing, latitude, longitude)));
+      return 'saved';
+    },
+    [itinerary],
+  );
+
   const replaceItinerary = useCallback((next: Itinerary): 'replaced' | 'invalid' => {
     const parsed = parseItinerary(JSON.stringify(itineraryForStorage(next)));
     if (!parsed) {
@@ -545,6 +567,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       moveWishlistToDay,
       applyPlan,
       replaceItinerary,
+      saveManualCoordinates,
       resetToSample,
     }),
     [
@@ -565,6 +588,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       renameDay,
       replaceItinerary,
       resetToSample,
+      saveManualCoordinates,
       selectDay,
     ],
   );

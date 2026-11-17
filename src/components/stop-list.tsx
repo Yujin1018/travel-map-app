@@ -21,6 +21,7 @@ export function StopList({
   onMoveToDay,
   onMoveToWishlist,
   onAttachSession,
+  onSaveManual,
   proximity,
   emptyHint,
 }: {
@@ -31,6 +32,7 @@ export function StopList({
   onMoveToDay: (stopId: string, dayId: string) => void;
   onMoveToWishlist: (stopId: string) => void;
   onAttachSession: (place: PlaceDraft) => AddPlaceResult;
+  onSaveManual: (stopId: string, latitude: number, longitude: number) => 'saved' | 'invalid' | 'missing';
   proximity: { latitude: number; longitude: number } | null;
   emptyHint: string;
 }) {
@@ -76,10 +78,15 @@ export function StopList({
                 <ThemedText type="small" themeColor="textSecondary">
                   {hasCoordinates(stop)
                     ? `${stop.latitude.toFixed(4)}, ${stop.longitude.toFixed(4)}`
-                    : '重新打开后，这个地点还没有坐标，地图上先不画。'}
+                    : '重新打开后还没画上。搜索结果不能保存。'}
                 </ThemedText>
                 {!hasCoordinates(stop) ? (
-                  <SessionPlaceRefresh query={stop.name} proximity={proximity} onAttach={onAttachSession} />
+                  <SessionPlaceRefresh
+                    query={stop.name}
+                    proximity={proximity}
+                    onAttach={onAttachSession}
+                    onSaveManual={(latitude, longitude) => onSaveManual(stop.id, latitude, longitude)}
+                  />
                 ) : null}
                 {stop.coordinateSource === 'mapbox' && hasCoordinates(stop) ? (
                   <ThemedText type="small" themeColor="textSecondary">

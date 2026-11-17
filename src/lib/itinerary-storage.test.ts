@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createSampleItinerary } from '../data/sample-itinerary.ts';
+import { parseCoordinate, withManualCoordinates } from './places.ts';
 import { parseItinerary } from '../state/parse-itinerary.ts';
 import type { Itinerary } from '../types/itinerary.ts';
 import { createBackup, itineraryForStorage, readBackupEnvelope } from './itinerary-storage.ts';
@@ -47,6 +48,26 @@ test('保存时去掉搜索得到的坐标，保留手填和示例坐标', () =>
   assert.equal(restored?.wishlist[0]?.coordinateSource, 'mapbox');
   assert.equal(restored?.wishlist[0]?.latitude, undefined);
   assert.equal(restored?.wishlist[1]?.name, '浅草寺');
+});
+
+test('手填坐标会留下来，搜索编号会被拿掉', () => {
+  const saved = withManualCoordinates(
+    {
+      id: 'searched',
+      name: '清水寺',
+      coordinateSource: 'mapbox',
+      mapboxId: 'poi.kiyomizu',
+      note: '东山区 · 京都府 · 日本',
+    },
+    34.9949,
+    135.785,
+  );
+  assert.equal(saved.coordinateSource, 'manual');
+  assert.equal(saved.latitude, 34.9949);
+  assert.equal(saved.mapboxId, undefined);
+  assert.equal(saved.note, undefined);
+  assert.equal(parseCoordinate('35，7148'), 35.7148);
+  assert.equal(parseCoordinate('北纬'), null);
 });
 
 test('不是本应用的文件不会被当成备份', () => {
