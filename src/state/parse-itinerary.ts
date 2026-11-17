@@ -1,7 +1,9 @@
 import type { DayPlan, Itinerary, SampleLeg, Stop } from '@/types/itinerary';
 
 const MAX_STOPS = 100;
+const MAX_DAYS = 31;
 const MAX_MINUTES = 7 * 24 * 60;
+const MAX_MAPBOX_ID = 300;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -41,7 +43,32 @@ function parseStop(value: unknown): Stop | null {
   if (typeof value.note === 'string' && value.note.trim()) {
     stop.note = value.note.trim();
   }
+  if (typeof value.mapboxId === 'string') {
+    const mapboxId = value.mapboxId.trim();
+    if (mapboxId && mapboxId.length <= MAX_MAPBOX_ID) {
+      stop.mapboxId = mapboxId;
+    }
+  }
   return stop;
+}
+
+function parseStopList(value: unknown, usedIds: Set<string>): Stop[] {
+  const stops: Stop[] = [];
+  if (!Array.isArray(value)) {
+    return stops;
+  }
+  for (const item of value) {
+    const stop = parseStop(item);
+    if (!stop || usedIds.has(stop.id)) {
+      continue;
+    }
+    usedIds.add(stop.id);
+    stops.push(stop);
+    if (stops.length >= MAX_STOPS) {
+      break;
+    }
+  }
+  return stops;
 }
 
 function parseLeg(value: unknown): SampleLeg | null {
@@ -69,7 +96,7 @@ function parseLeg(value: unknown): SampleLeg | null {
   };
 }
 
-function parseDay(value: unknown): DayPlan | null {
+function parseDay(value: unknown, usedIds: Set<string>): DayPlan | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -83,20 +110,7 @@ function parseDay(value: unknown): DayPlan | null {
     return null;
   }
 
-  const stops: Stop[] = [];
-  if (Array.isArray(value.stops)) {
-    for (const item of value.stops) {
-      const stop = parseStop(item);
-      if (!stop || stops.some((existing) => existing.id === stop.id)) {
-        continue;
-      }
-      stops.push(stop);
-      if (stops.length >= MAX_STOPS) {
-        break;
-      }
-    }
-  }
-
+  const stops = parseStopList(value.stops, usedIds);
   const stopIds = new Set(stops.map((stop) => stop.id));
   const sampleLegs: SampleLeg[] = [];
   if (Array.isArray(value.sampleLegs)) {
@@ -131,18 +145,27 @@ function parseValue(value: unknown): Itinerary | null {
     return null;
   }
 
+  const usedIds = new Set<string>();
   const days: DayPlan[] = [];
   for (const item of value.days) {
-    const day = parseDay(item);
+    const day = parseDay(item, usedIds);
     if (day && !days.some((existing) => existing.id === day.id)) {
       days.push(day);
     }
+    if (days.length >= MAX_DAYS) {
+      break;
+    }
   }
-  if (days.length === 0) {
+  const firstDay = days[0];
+  if (!firstDay) {
     return null;
   }
 
-  return { id: value.id, title, days };
+  const wishlist = parseStopList(value.wishlist, usedIds);
+  const requestedActiveDayId = typeof value.activeDayId === 'string' ? value.activeDayId : '';
+  const activeDayId = days.some((day) => day.id === requestedActiveDayId) ? requestedActiveDayId : firstDay.id;
+
+  return { id: value.id, title, days, wishlist, activeDayId };
 }
 
 /** 本地存档坏了就返回 null，调用方改用示例行程。 */

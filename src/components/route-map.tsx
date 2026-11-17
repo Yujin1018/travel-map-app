@@ -30,7 +30,7 @@ export function RouteMap({ stops }: { stops: Stop[] }) {
         <SchematicMap stops={stops} />
       )}
       <ThemedText type="small" themeColor="textSecondary">
-        连线只表示访问顺序，还不是实际道路。示例分钟数也不是导航结果。
+        连线只表示这一天的访问顺序，还不是实际道路。
       </ThemedText>
     </View>
   );

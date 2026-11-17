@@ -5,6 +5,17 @@ export type Stop = {
   latitude: number;
   longitude: number;
   note?: string;
+  /** Mapbox 返回的地点 id。用来避免把同一个地点加两次。 */
+  mapboxId?: string;
+};
+
+/** 搜索或手动输入后、还没写入行程时的地点。 */
+export type PlaceDraft = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  mapboxId?: string;
+  note?: string;
 };
 
 /**
@@ -31,4 +42,8 @@ export type Itinerary = {
   id: string;
   title: string;
   days: DayPlan[];
+  /** 还没排进某一天的地点。 */
+  wishlist: Stop[];
+  /** 地图和行程页当前看着的那一天。 */
+  activeDayId: string;
 };

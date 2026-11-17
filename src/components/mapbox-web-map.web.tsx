@@ -18,10 +18,12 @@ export function MapboxWebMap({
   onFail: () => void;
 }) {
   const theme = useTheme();
+  const stopKey = stops.map((stop) => `${stop.id}:${stop.latitude}:${stop.longitude}`).join('|');
 
   return (
     <View style={[styles.frame, { backgroundColor: theme.mapSurface }]}>
       {createElement('iframe', {
+        key: stopKey,
         title: 'Mapbox 地图',
         srcDoc: buildMapHtml(token, stops),
         style: {

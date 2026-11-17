@@ -8,6 +8,8 @@ export function createSampleItinerary(): Itinerary {
   return {
     id: 'sample-trip',
     title: '我的行程',
+    activeDayId: 'day-kyoto',
+    wishlist: [],
     days: [
       {
         id: 'day-kyoto',
