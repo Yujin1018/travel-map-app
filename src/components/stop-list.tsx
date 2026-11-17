@@ -1,11 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
+import { SessionPlaceRefresh } from '@/components/session-place-refresh';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { hasCoordinates } from '@/lib/places';
-import type { DayPlan, SampleLeg } from '@/types/itinerary';
+import type { AddPlaceResult } from '@/state/itinerary-context';
+import type { DayPlan, PlaceDraft, SampleLeg } from '@/types/itinerary';
 
 function findSampleLeg(day: DayPlan, fromStopId: string, toStopId: string): SampleLeg | undefined {
   return day.sampleLegs.find((leg) => leg.fromStopId === fromStopId && leg.toStopId === toStopId);
@@ -18,6 +20,8 @@ export function StopList({
   onRemove,
   onMoveToDay,
   onMoveToWishlist,
+  onAttachSession,
+  proximity,
   emptyHint,
 }: {
   day: DayPlan;
@@ -26,6 +30,8 @@ export function StopList({
   onRemove: (stopId: string) => void;
   onMoveToDay: (stopId: string, dayId: string) => void;
   onMoveToWishlist: (stopId: string) => void;
+  onAttachSession: (place: PlaceDraft) => AddPlaceResult;
+  proximity: { latitude: number; longitude: number } | null;
   emptyHint: string;
 }) {
   const theme = useTheme();
@@ -70,8 +76,11 @@ export function StopList({
                 <ThemedText type="small" themeColor="textSecondary">
                   {hasCoordinates(stop)
                     ? `${stop.latitude.toFixed(4)}, ${stop.longitude.toFixed(4)}`
-                    : '这次还没有坐标。搜索得到的坐标不会保存，重新打开后要再搜一次。'}
+                    : '重新打开后，这个地点还没有坐标，地图上先不画。'}
                 </ThemedText>
+                {!hasCoordinates(stop) ? (
+                  <SessionPlaceRefresh query={stop.name} proximity={proximity} onAttach={onAttachSession} />
+                ) : null}
                 {stop.coordinateSource === 'mapbox' && hasCoordinates(stop) ? (
                   <ThemedText type="small" themeColor="textSecondary">
                     这个坐标只在本次打开时有效。

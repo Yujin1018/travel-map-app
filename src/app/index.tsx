@@ -7,6 +7,7 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { hasCoordinates } from '@/lib/places';
 import { useItinerary } from '@/state/itinerary-context';
 
 export default function MapScreen() {
@@ -39,6 +40,11 @@ export default function MapScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {activeDay.stops.length > 0 ? activeDay.stops.map((stop) => stop.name).join(' → ') : '这一天还没有地点'}
             </ThemedText>
+            {activeDay.stops.some((stop) => !hasCoordinates(stop)) ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                有的地点重新打开后还没有坐标，地图上先不画。到行程页点「重新查找」，或手填经纬度才会一直留下。
+              </ThemedText>
+            ) : null}
             {wishlist.length > 0 ? (
               <ThemedText type="small" themeColor="textSecondary">
                 还有 {wishlist.length} 个想去的地点没排进某一天。

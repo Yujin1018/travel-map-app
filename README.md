@@ -81,6 +81,23 @@ npx expo start --web
 
 Search Box 文档目前把支持的地区写成美国、加拿大和欧洲，列出的语言里也没有中文。同一页又写了日本地址的类型。日本等地的景点可能搜不到。搜不到时用手填坐标。
 
+## 搜索坐标为什么刷新后不在地图上
+
+现在的公开令牌不能合法地把搜索到的坐标存下来。依据是 Mapbox 当前文档：
+
+- [Search Box API](https://docs.mapbox.com/api/search/search-box/)：接口返回的数据只能临时使用。要保存位置，需要联系 Mapbox 销售。寺庙、景点这类结果走的就是这个接口。
+- [Geocoding API](https://docs.mapbox.com/api/search/geocoding/)：默认也是临时结果，不能缓存。把参数设成 `permanent=true` 之后才允许长期保存，但文档写明这需要账户里有信用卡或企业合同，而且地理编码不返回景点。
+- [Search API 的永久正向地理编码](https://docs.mapbox.com/api/search/search/)：同样要联系销售，并且写明永久结果里不含景点。
+
+所以这次没有打开 `permanent=true`，也没有把搜索坐标写进本地或备份。刷新或重新打开后，名称还在，地图上先不画。行程页每个这样的地点有「重新查找」，点一个结果后只在这次打开时画上。想让图钉一直留下，请手填经纬度。
+
+如果要让寺庙和景点的搜索结果在重新打开后仍然出现在地图上，需要你先同意其中一件事：
+
+1. 向 Mapbox 销售申请保存 Search Box 位置数据的许可，并说明要包含景点。拿到许可之前，这支代码不会把那些坐标写进设备。
+2. 或者在 Mapbox 账户里开通地理编码的永久存储。那仍然保存不了景点，只能保存地址、城市这类结果。
+
+费用以 Mapbox 当时的说明为准，这里不写价格。
+
 ## 以后装到手机上
 
 这次没有登录 Expo、没有注册 Apple 或 Google 的应用、没有执行云端构建，也没有生成安装包。
@@ -126,6 +143,7 @@ Search Box 文档目前把支持的地区写成美国、加拿大和欧洲，列
 - `npx expo export --platform web`
 - `npx expo export --platform ios` 和 `android`。产物是 JavaScript 包（`.hbc`），不是能装到手机上的 IPA 或 APK
 - 浏览器窄屏上看过行程和地图。没有在 iPhone 或 Android 真机上打开
+- 对照过上面三份 Mapbox 文档。没有改成把搜索坐标存进设备
 
 没有运行 `eas build`，没有登录 Expo，也没有注册应用。
 

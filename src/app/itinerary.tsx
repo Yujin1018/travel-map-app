@@ -185,6 +185,8 @@ export default function ItineraryScreen() {
               const result = moveStopToWishlist(activeDay.id, stopId);
               setEditMessage(result === 'duplicate' ? '想去列表里已经有这个地点，所以没有移走。' : '');
             }}
+            proximity={proximity}
+            onAttachSession={(place) => addToDay(activeDay.id, place)}
           />
           {editMessage ? (
             <ThemedText type="small" style={{ color: theme.danger }}>
@@ -239,6 +241,8 @@ export default function ItineraryScreen() {
             days={itinerary.days.map((day) => ({ id: day.id, dateLabel: day.dateLabel }))}
             onMoveToDay={moveWishlistToDay}
             onRemove={removeWishlistPlace}
+            proximity={proximity}
+            onAttachSession={addToWishlist}
           />
           <AutoPlan places={planningPlaces} onApply={applyPlan} />
           <ItineraryBackup itinerary={itinerary} onReplace={replaceItinerary} />

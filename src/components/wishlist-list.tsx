@@ -2,22 +2,28 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
+import { SessionPlaceRefresh } from '@/components/session-place-refresh';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { hasCoordinates } from '@/lib/places';
-import type { Stop } from '@/types/itinerary';
+import type { AddPlaceResult } from '@/state/itinerary-context';
+import type { PlaceDraft, Stop } from '@/types/itinerary';
 
 export function WishlistList({
   places,
   days,
   onMoveToDay,
   onRemove,
+  onAttachSession,
+  proximity,
 }: {
   places: Stop[];
   days: { id: string; dateLabel: string }[];
   onMoveToDay: (stopId: string, dayId: string) => 'moved' | 'duplicate' | 'missing';
   onRemove: (stopId: string) => void;
+  onAttachSession: (place: PlaceDraft) => AddPlaceResult;
+  proximity: { latitude: number; longitude: number } | null;
 }) {
   const theme = useTheme();
   const [message, setMessage] = useState('');
@@ -52,8 +58,11 @@ export function WishlistList({
           <ThemedText type="small" themeColor="textSecondary">
             {hasCoordinates(place)
               ? `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}${place.coordinateSource === 'mapbox' ? ' · 仅本次打开' : ''}`
-              : '这次还没有坐标。搜索结果不会写入设备。'}
+              : '重新打开后还没有坐标。点下面再查一次，或手填经纬度才会一直留在地图上。'}
           </ThemedText>
+          {!hasCoordinates(place) ? (
+            <SessionPlaceRefresh query={place.name} proximity={proximity} onAttach={onAttachSession} />
+          ) : null}
           <View style={styles.actions}>
             {days.map((day) => (
               <ActionButton
