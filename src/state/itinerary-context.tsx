@@ -2,14 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { createSampleItinerary } from '@/data/sample-itinerary';
-import { draftIsValid, isSamePlace } from '@/lib/places';
+import { itineraryForStorage } from '@/lib/itinerary-storage';
+import { draftIsValid, hasCoordinates, isSamePlace, placeLabel } from '@/lib/places';
 import { parseItinerary } from '@/state/parse-itinerary';
 import type { DayPlan, Itinerary, PlaceDraft, SampleLeg, Stop } from '@/types/itinerary';
 
 const STORAGE_KEY = 'travel-map.itinerary.v1';
 const MAX_DAYS = 14;
 
-export type AddPlaceResult = 'added' | 'duplicate' | 'invalid';
+export type AddPlaceResult = 'added' | 'refreshed' | 'duplicate' | 'invalid';
 
 export type AddManyResult = {
   added: string[];
@@ -36,6 +37,7 @@ type ItineraryContextValue = {
   removeWishlistPlace: (stopId: string) => void;
   moveWishlistToDay: (stopId: string, dayId: string) => 'moved' | 'duplicate' | 'missing';
   applyPlan: (groups: Stop[][]) => void;
+  replaceItinerary: (next: Itinerary) => 'replaced' | 'invalid';
   resetToSample: () => void;
 };
 
@@ -67,7 +69,11 @@ function allStops(itinerary: Itinerary): Stop[] {
   return [...itinerary.wishlist, ...itinerary.days.flatMap((day) => day.stops)];
 }
 
-function containsPlace(itinerary: Itinerary, place: PlaceDraft, ignoreId?: string): boolean {
+function containsPlace(
+  itinerary: Itinerary,
+  place: Pick<Stop, 'name' | 'latitude' | 'longitude' | 'mapboxId' | 'userLabel'>,
+  ignoreId?: string,
+): boolean {
   return allStops(itinerary).some((stop) => stop.id !== ignoreId && isSamePlace(stop, place));
 }
 
@@ -75,21 +81,89 @@ function toStop(draft: PlaceDraft): Stop | null {
   if (!draftIsValid(draft)) {
     return null;
   }
+  const source = draft.coordinateSource ?? 'manual';
   const stop: Stop = {
     id: createId('stop'),
     name: draft.name.trim(),
     latitude: draft.latitude,
     longitude: draft.longitude,
+    coordinateSource: source,
   };
+  const userLabel = draft.userLabel?.trim();
   const mapboxId = draft.mapboxId?.trim();
   const note = draft.note?.trim();
-  if (mapboxId) {
+  if (userLabel) {
+    stop.userLabel = userLabel.slice(0, 80);
+  } else if (source === 'mapbox') {
+    stop.userLabel = stop.name;
+  }
+  if (mapboxId && source === 'mapbox') {
     stop.mapboxId = mapboxId.slice(0, 300);
   }
   if (note) {
     stop.note = note.slice(0, 80);
   }
   return stop;
+}
+
+function replaceStop(itinerary: Itinerary, stopId: string, stop: Stop): Itinerary {
+  return {
+    ...itinerary,
+    wishlist: itinerary.wishlist.map((place) => (place.id === stopId ? stop : place)),
+    days: itinerary.days.map((day) => ({
+      ...day,
+      stops: day.stops.map((place) => (place.id === stopId ? stop : place)),
+    })),
+  };
+}
+
+function placeInto(
+  itinerary: Itinerary,
+  stop: Stop,
+  destination: 'wishlist' | string,
+): { next: Itinerary; result: 'added' | 'refreshed' | 'duplicate' | 'invalid' } {
+  if (stop.coordinateSource === 'mapbox') {
+    const duplicate = allStops(itinerary).find((place) => hasCoordinates(place) && isSamePlace(place, stop));
+    if (duplicate) {
+      return { next: itinerary, result: 'duplicate' };
+    }
+    const pending = allStops(itinerary).find(
+      (place) => !hasCoordinates(place) && placeLabel(place).toLocaleLowerCase() === placeLabel(stop).toLocaleLowerCase(),
+    );
+    if (pending) {
+      return {
+        next: replaceStop(itinerary, pending.id, {
+          ...pending,
+          name: stop.name,
+          userLabel: stop.userLabel ?? pending.name,
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+          mapboxId: stop.mapboxId,
+          note: stop.note,
+          coordinateSource: 'mapbox',
+        }),
+        result: 'refreshed',
+      };
+    }
+  } else if (containsPlace(itinerary, stop)) {
+    return { next: itinerary, result: 'duplicate' };
+  }
+
+  if (destination === 'wishlist') {
+    return { next: { ...itinerary, wishlist: [...itinerary.wishlist, stop] }, result: 'added' };
+  }
+  if (!itinerary.days.some((day) => day.id === destination)) {
+    return { next: itinerary, result: 'invalid' };
+  }
+  return {
+    next: {
+      ...itinerary,
+      days: itinerary.days.map((day) =>
+        day.id === destination ? { ...day, stops: [...day.stops, stop] } : day,
+      ),
+    },
+    result: 'added',
+  };
 }
 
 function withoutStop(day: DayPlan, stopId: string): DayPlan {
@@ -136,7 +210,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     if (!itinerary) {
       return;
     }
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(itinerary)).catch(() => {});
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(itineraryForStorage(itinerary))).catch(() => {});
   }, [itinerary]);
 
   const selectDay = useCallback((dayId: string) => {
@@ -221,23 +295,11 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       if (!stop) {
         return 'invalid';
       }
-      if (containsPlace(itinerary, stop)) {
-        return 'duplicate';
+      const placed = placeInto(itinerary, stop, destination);
+      if (placed.result === 'added' || placed.result === 'refreshed') {
+        setItinerary(placed.next);
       }
-      if (destination === 'wishlist') {
-        setItinerary({ ...itinerary, wishlist: [...itinerary.wishlist, stop] });
-        return 'added';
-      }
-      if (!itinerary.days.some((day) => day.id === destination)) {
-        return 'invalid';
-      }
-      setItinerary({
-        ...itinerary,
-        days: itinerary.days.map((day) =>
-          day.id === destination ? { ...day, stops: [...day.stops, stop] } : day,
-        ),
-      });
-      return 'added';
+      return placed.result;
     },
     [itinerary],
   );
@@ -262,23 +324,16 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         if (!stop) {
           continue;
         }
-        if (containsPlace(next, stop)) {
-          duplicates.push(stop.name);
+        const placed = placeInto(next, stop, destination);
+        if (placed.result === 'duplicate') {
+          duplicates.push(placeLabel(stop));
           continue;
         }
-        if (destination === 'wishlist') {
-          next = { ...next, wishlist: [...next.wishlist, stop] };
-        } else if (next.days.some((day) => day.id === destination)) {
-          next = {
-            ...next,
-            days: next.days.map((day) =>
-              day.id === destination ? { ...day, stops: [...day.stops, stop] } : day,
-            ),
-          };
-        } else {
+        if (placed.result === 'invalid') {
           continue;
         }
-        added.push(stop.name);
+        next = placed.next;
+        added.push(placeLabel(stop));
       }
       if (added.length > 0) {
         setItinerary(next);
@@ -459,6 +514,15 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     setItinerary(createSampleItinerary());
   }, []);
 
+  const replaceItinerary = useCallback((next: Itinerary): 'replaced' | 'invalid' => {
+    const parsed = parseItinerary(JSON.stringify(itineraryForStorage(next)));
+    if (!parsed) {
+      return 'invalid';
+    }
+    setItinerary(parsed);
+    return 'replaced';
+  }, []);
+
   const value = useMemo<ItineraryContextValue>(
     () => ({
       itinerary,
@@ -480,6 +544,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       removeWishlistPlace,
       moveWishlistToDay,
       applyPlan,
+      replaceItinerary,
       resetToSample,
     }),
     [
@@ -498,6 +563,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       removeStop,
       removeWishlistPlace,
       renameDay,
+      replaceItinerary,
       resetToSample,
       selectDay,
     ],

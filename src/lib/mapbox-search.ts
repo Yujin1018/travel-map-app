@@ -78,7 +78,7 @@ export async function searchPlaces(query: string, options: SearchOptions): Promi
   const url = new URL(SEARCH_URL);
   url.searchParams.set('q', text);
   url.searchParams.set('access_token', token);
-  url.searchParams.set('language', 'zh');
+  // Search Box 文档列出的语言不含中文，传 zh 没有依据。查询文字本身仍可以是中文。
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('auto_complete', options.autocomplete === false ? 'false' : 'true');
   if (options.proximity) {

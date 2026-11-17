@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { planDays } from '@/lib/plan-days';
+import { hasCoordinates } from '@/lib/places';
 import type { Stop } from '@/types/itinerary';
 
 const MIN_DAYS = 1;
@@ -22,16 +23,18 @@ export function AutoPlan({ places, onApply }: { places: Stop[]; onApply: (groups
     setPreview(null);
   }, [dayCount, placeKey]);
 
+  const located = places.filter(hasCoordinates);
   const emptyDays = preview ? preview.filter((group) => group.length === 0).length : 0;
 
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <ThemedText type="smallBold">智能分配</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        把想去的地点和已经排进各天的地点放在一起，按远近分成几天。同一天尽量靠近，一天内部按就近顺序排列。这不是道路导航。
+        把已有坐标的地点按直线距离分成几天，同一天尽量靠近，一天内部再按就近顺序排。这不是沿道路规划，也不会估算交通时间。
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        {places.length > 0 ? `现在有 ${places.length} 个地点可以分配。` : '先搜索或从帖子加入地点，再做智能分配。'}
+        {located.length > 0 ? `现在有 ${located.length} 个有坐标的地点可以分配。` : '先加入有坐标的地点，再做分组。'}
+        {places.length > located.length ? ' 没有坐标的地点会留在原地，不参加这次分组。' : ''}
       </ThemedText>
       <View style={styles.stepper}>
         <FillButton
@@ -50,10 +53,10 @@ export function AutoPlan({ places, onApply }: { places: Stop[]; onApply: (groups
       </View>
       <FillButton
         label="生成分配"
-        disabled={places.length === 0}
+        disabled={located.length === 0}
         onPress={() => {
           setMessage('');
-          setPreview(planDays(places, dayCount));
+          setPreview(planDays(located, dayCount));
         }}
       />
       {preview ? (

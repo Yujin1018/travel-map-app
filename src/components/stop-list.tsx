@@ -4,6 +4,7 @@ import { ActionButton } from '@/components/action-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { hasCoordinates } from '@/lib/places';
 import type { DayPlan, SampleLeg } from '@/types/itinerary';
 
 function findSampleLeg(day: DayPlan, fromStopId: string, toStopId: string): SampleLeg | undefined {
@@ -67,8 +68,15 @@ export function StopList({
                   </ThemedText>
                 ) : null}
                 <ThemedText type="small" themeColor="textSecondary">
-                  {stop.latitude.toFixed(4)}, {stop.longitude.toFixed(4)}
+                  {hasCoordinates(stop)
+                    ? `${stop.latitude.toFixed(4)}, ${stop.longitude.toFixed(4)}`
+                    : '这次还没有坐标。搜索得到的坐标不会保存，重新打开后要再搜一次。'}
                 </ThemedText>
+                {stop.coordinateSource === 'mapbox' && hasCoordinates(stop) ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    这个坐标只在本次打开时有效。
+                  </ThemedText>
+                ) : null}
                 <View style={styles.actions}>
                   <ActionButton label="上移" disabled={index === 0} onPress={() => onMove(stop.id, -1)} />
                   <ActionButton

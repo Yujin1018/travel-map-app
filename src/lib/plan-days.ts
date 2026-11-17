@@ -1,5 +1,7 @@
 import type { Stop } from '@/types/itinerary';
 
+type LocatedStop = Stop & { latitude: number; longitude: number };
+
 const EARTH_KM = 6371;
 
 /**
@@ -7,7 +9,7 @@ const EARTH_KM = 6371;
  * 先挑彼此离得远的种子，再把每个地点分给最近、而且这一天还没满的种子。
  * 一天内部用就近顺序，不是道路导航。
  */
-export function planDays(places: Stop[], requestedDays: number): Stop[][] {
+export function planDays(places: LocatedStop[], requestedDays: number): LocatedStop[][] {
   if (places.length === 0) {
     return [];
   }
@@ -26,7 +28,7 @@ export function planDays(places: Stop[], requestedDays: number): Stop[][] {
   });
   const seeds = seedIndexes
     .map((index) => source[index])
-    .filter((place): place is Stop => Boolean(place));
+    .filter((place): place is LocatedStop => Boolean(place));
   const used = new Set(seedIndexes);
   const maxSize = Math.ceil(source.length / Math.max(groups.length, 1));
   const remaining = source
@@ -65,7 +67,7 @@ function clampDays(value: number): number {
   return Math.min(14, Math.max(1, Math.floor(value)));
 }
 
-function padDays(groups: Stop[][], dayCount: number): Stop[][] {
+function padDays(groups: LocatedStop[][], dayCount: number): LocatedStop[][] {
   const next = groups.map((group) => group.slice());
   while (next.length < dayCount) {
     next.push([]);
@@ -73,7 +75,7 @@ function padDays(groups: Stop[][], dayCount: number): Stop[][] {
   return next.slice(0, dayCount);
 }
 
-function pickSeeds(places: Stop[], count: number): number[] {
+function pickSeeds(places: LocatedStop[], count: number): number[] {
   let start = 0;
   for (let index = 1; index < places.length; index += 1) {
     const place = places[index];
@@ -122,7 +124,7 @@ function pickSeeds(places: Stop[], count: number): number[] {
   return seeds;
 }
 
-function orderGroups(groups: Stop[][]): Stop[][] {
+function orderGroups(groups: LocatedStop[][]): LocatedStop[][] {
   const nonempty = groups.filter((group) => group.length > 0);
   const emptyCount = groups.length - nonempty.length;
   if (nonempty.length === 0) {
@@ -165,15 +167,15 @@ function orderGroups(groups: Stop[][]): Stop[][] {
 }
 
 function orderStops(
-  stops: Stop[],
+  stops: LocatedStop[],
   startHint: { latitude: number; longitude: number } | null,
   nextCenter: { latitude: number; longitude: number } | null,
-): Stop[] {
+): LocatedStop[] {
   if (stops.length <= 1) {
     return stops.slice();
   }
   const remaining = stops.slice();
-  const ordered: Stop[] = [];
+  const ordered: LocatedStop[] = [];
   if (startHint) {
     ordered.push(takeClosest(remaining, startHint));
   } else if (nextCenter) {
@@ -195,7 +197,7 @@ function orderStops(
   return ordered;
 }
 
-function takeClosest(places: Stop[], target: { latitude: number; longitude: number }): Stop {
+function takeClosest(places: LocatedStop[], target: { latitude: number; longitude: number }): LocatedStop {
   let bestIndex = 0;
   let bestDistance = Infinity;
   for (let index = 0; index < places.length; index += 1) {
@@ -209,10 +211,10 @@ function takeClosest(places: Stop[], target: { latitude: number; longitude: numb
       bestIndex = index;
     }
   }
-  return places.splice(bestIndex, 1)[0] as Stop;
+  return places.splice(bestIndex, 1)[0] as LocatedStop;
 }
 
-function takeFarthest(places: Stop[], target: { latitude: number; longitude: number }): Stop {
+function takeFarthest(places: LocatedStop[], target: { latitude: number; longitude: number }): LocatedStop {
   let bestIndex = 0;
   let bestDistance = -1;
   for (let index = 0; index < places.length; index += 1) {
@@ -226,10 +228,10 @@ function takeFarthest(places: Stop[], target: { latitude: number; longitude: num
       bestIndex = index;
     }
   }
-  return places.splice(bestIndex, 1)[0] as Stop;
+  return places.splice(bestIndex, 1)[0] as LocatedStop;
 }
 
-function centroid(stops: Stop[]): { latitude: number; longitude: number } {
+function centroid(stops: LocatedStop[]): { latitude: number; longitude: number } {
   return {
     latitude: stops.reduce((sum, stop) => sum + stop.latitude, 0) / stops.length,
     longitude: stops.reduce((sum, stop) => sum + stop.longitude, 0) / stops.length,

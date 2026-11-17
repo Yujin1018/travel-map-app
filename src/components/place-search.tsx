@@ -87,7 +87,8 @@ export function PlaceSearch({
   }, [proximity, query, token]);
 
   function add(place: GeocodedPlace, destination: 'wishlist' | 'day') {
-    const outcome = destination === 'wishlist' ? onAddToWishlist(toDraft(place)) : onAddToDay(toDraft(place));
+    const outcome =
+      destination === 'wishlist' ? onAddToWishlist(toDraft(place, query.trim() || place.name)) : onAddToDay(toDraft(place, query.trim() || place.name));
     if (outcome === 'invalid') {
       setStatus({ kind: 'message', text: '这个结果缺少可用的名称或坐标。', tone: 'danger' });
       return;
@@ -97,7 +98,12 @@ export function PlaceSearch({
       return;
     }
     const where = destination === 'wishlist' ? '想去的地点' : dayLabel;
-    setStatus({ kind: 'message', text: `已把${place.name}加入${where}。`, tone: 'info' });
+    const verb = outcome === 'refreshed' ? '更新了' : '加入了';
+    setStatus({
+      kind: 'message',
+      text: `已把${place.name}${verb}${where}。这次的坐标不会保存，重新打开后需要再搜一次。`,
+      tone: 'info',
+    });
   }
 
   return (
@@ -105,6 +111,9 @@ export function PlaceSearch({
       <ThemedText type="smallBold">搜索地点</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         输入名称，从结果里选一个。可以放进想去列表，或直接加到{dayLabel}。
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        地点数据 © Mapbox。搜索到的坐标只在这次打开时画在地图上，不会写入设备。官方文档目前写明的搜索范围是美国、加拿大和欧洲，其他地区的景点可能没有结果。
       </ThemedText>
       <TextInput
         value={query}
@@ -159,7 +168,7 @@ export function PlaceSearch({
   );
 }
 
-function toDraft(place: GeocodedPlace): PlaceDraft {
+function toDraft(place: GeocodedPlace, userLabel: string): PlaceDraft {
   const note = formatPlaceContext(place);
   return {
     name: place.name,
@@ -167,6 +176,8 @@ function toDraft(place: GeocodedPlace): PlaceDraft {
     longitude: place.longitude,
     mapboxId: place.mapboxId,
     note: note || undefined,
+    coordinateSource: 'mapbox',
+    userLabel,
   };
 }
 

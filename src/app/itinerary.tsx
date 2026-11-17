@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { FillButton } from '@/components/action-button';
 import { AutoPlan } from '@/components/auto-plan';
+import { ItineraryBackup } from '@/components/itinerary-backup';
 import { DaySwitcher } from '@/components/day-switcher';
 import { PlaceSearch } from '@/components/place-search';
 import { PostImport } from '@/components/post-import';
@@ -47,6 +48,7 @@ export default function ItineraryScreen() {
     removeWishlistPlace,
     moveWishlistToDay,
     applyPlan,
+    replaceItinerary,
     resetToSample,
   } = useItinerary();
   const [name, setName] = useState('');
@@ -239,11 +241,12 @@ export default function ItineraryScreen() {
             onRemove={removeWishlistPlace}
           />
           <AutoPlan places={planningPlaces} onApply={applyPlan} />
+          <ItineraryBackup itinerary={itinerary} onReplace={replaceItinerary} />
 
           <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="smallBold">手动填写坐标</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              搜索没有结果，或还没配置令牌时，可以直接填写名称和经纬度。
+              搜索没有结果，或还没配置令牌时，可以直接填写名称和经纬度。手填的坐标会保存在这台设备上。
             </ThemedText>
             <TextInput
               value={name}

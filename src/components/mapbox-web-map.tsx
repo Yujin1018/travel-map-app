@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { ThemedText } from '@/components/themed-text';
+import { useMapFrameHeight } from '@/hooks/use-map-frame';
 import { useTheme } from '@/hooks/use-theme';
 import { buildMapHtml } from '@/lib/mapbox-html';
 import type { Stop } from '@/types/itinerary';
@@ -16,15 +17,16 @@ export function MapboxWebMap({
   onFail: () => void;
 }) {
   const theme = useTheme();
+  const frameHeight = useMapFrameHeight();
   const stopKey = stops.map((stop) => `${stop.id}:${stop.latitude}:${stop.longitude}`).join('|');
 
   return (
-    <View style={[styles.frame, { backgroundColor: theme.mapSurface }]}>
+    <View style={[styles.frame, { backgroundColor: theme.mapSurface, height: frameHeight }]}>
       <WebView
         key={stopKey}
         originWhitelist={['*']}
         source={{ html: buildMapHtml(token, stops), baseUrl: 'https://localhost' }}
-        style={styles.webView}
+        style={[styles.webView, { height: frameHeight }]}
         javaScriptEnabled
         domStorageEnabled
         setSupportMultipleWindows={false}

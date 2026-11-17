@@ -3,18 +3,38 @@ import type { PlaceDraft, Stop } from '@/types/itinerary';
 /** 同名且坐标相差约 1 米以内，视为同一个地点。 */
 const SAME_COORDINATE = 0.00001;
 
+export function hasCoordinates<T extends Pick<Stop, 'latitude' | 'longitude'>>(
+  stop: T,
+): stop is T & { latitude: number; longitude: number } {
+  return (
+    typeof stop.latitude === 'number' &&
+    typeof stop.longitude === 'number' &&
+    Number.isFinite(stop.latitude) &&
+    Number.isFinite(stop.longitude)
+  );
+}
+
+export function placeLabel(stop: Pick<Stop, 'name' | 'userLabel'>): string {
+  return (stop.userLabel || stop.name).trim();
+}
+
 export function isSamePlace(
-  left: Pick<Stop, 'name' | 'latitude' | 'longitude' | 'mapboxId'>,
-  right: Pick<Stop, 'name' | 'latitude' | 'longitude' | 'mapboxId'>,
+  left: Pick<Stop, 'name' | 'latitude' | 'longitude' | 'mapboxId' | 'userLabel'>,
+  right: Pick<Stop, 'name' | 'latitude' | 'longitude' | 'mapboxId' | 'userLabel'>,
 ): boolean {
   if (left.mapboxId && right.mapboxId && left.mapboxId === right.mapboxId) {
     return true;
   }
-  return (
-    left.name.trim().toLocaleLowerCase() === right.name.trim().toLocaleLowerCase() &&
-    Math.abs(left.latitude - right.latitude) < SAME_COORDINATE &&
-    Math.abs(left.longitude - right.longitude) < SAME_COORDINATE
-  );
+  if (placeLabel(left).toLocaleLowerCase() !== placeLabel(right).toLocaleLowerCase()) {
+    return false;
+  }
+  if (hasCoordinates(left) && hasCoordinates(right)) {
+    return (
+      Math.abs(left.latitude - right.latitude) < SAME_COORDINATE &&
+      Math.abs(left.longitude - right.longitude) < SAME_COORDINATE
+    );
+  }
+  return !hasCoordinates(left) && !hasCoordinates(right);
 }
 
 export function uniquePlaces(places: Stop[]): Stop[] {
@@ -31,11 +51,12 @@ export function uniquePlaces(places: Stop[]): Stop[] {
 export function averageCoordinate(
   places: Pick<Stop, 'latitude' | 'longitude'>[],
 ): { latitude: number; longitude: number } | null {
-  if (places.length === 0) {
+  const located = places.filter(hasCoordinates);
+  if (located.length === 0) {
     return null;
   }
-  const latitude = places.reduce((sum, place) => sum + place.latitude, 0) / places.length;
-  const longitude = places.reduce((sum, place) => sum + place.longitude, 0) / places.length;
+  const latitude = located.reduce((sum, place) => sum + place.latitude, 0) / located.length;
+  const longitude = located.reduce((sum, place) => sum + place.longitude, 0) / located.length;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null;
   }

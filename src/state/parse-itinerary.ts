@@ -1,53 +1,62 @@
-import type { DayPlan, Itinerary, SampleLeg, Stop } from '@/types/itinerary';
+import type { CoordinateSource, DayPlan, Itinerary, SampleLeg, Stop } from '@/types/itinerary';
 
 const MAX_STOPS = 100;
 const MAX_DAYS = 31;
 const MAX_MINUTES = 7 * 24 * 60;
-const MAX_MAPBOX_ID = 300;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseStop(value: unknown): Stop | null {
-  if (!isRecord(value)) {
-    return null;
+function readSource(value: unknown): CoordinateSource | undefined {
+  if (value === 'sample' || value === 'manual' || value === 'mapbox') {
+    return value;
   }
-  if (typeof value.id !== 'string' || typeof value.name !== 'string') {
-    return null;
-  }
+  return undefined;
+}
+
+function coordinatesOf(value: Record<string, unknown>): { latitude: number; longitude: number } | null {
   if (typeof value.latitude !== 'number' || typeof value.longitude !== 'number') {
     return null;
   }
   if (!Number.isFinite(value.latitude) || !Number.isFinite(value.longitude)) {
     return null;
   }
-  if (value.latitude < -90 || value.latitude > 90) {
+  if (value.latitude < -90 || value.latitude > 90 || value.longitude < -180 || value.longitude > 180) {
     return null;
   }
-  if (value.longitude < -180 || value.longitude > 180) {
-    return null;
-  }
+  return { latitude: value.latitude, longitude: value.longitude };
+}
 
+function parseStop(value: unknown): Stop | null {
+  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.name !== 'string') {
+    return null;
+  }
   const name = value.name.trim();
   if (!name) {
     return null;
   }
 
+  const source = readSource(value.coordinateSource);
+  const fromSearch = source === 'mapbox' || (typeof value.mapboxId === 'string' && value.mapboxId.trim().length > 0);
+  if (fromSearch) {
+    return { id: value.id, name, coordinateSource: 'mapbox' };
+  }
+
+  const coordinates = coordinatesOf(value);
+  if (!coordinates) {
+    return null;
+  }
   const stop: Stop = {
     id: value.id,
     name,
-    latitude: value.latitude,
-    longitude: value.longitude,
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
   };
+  if (source) {
+    stop.coordinateSource = source;
+  }
   if (typeof value.note === 'string' && value.note.trim()) {
     stop.note = value.note.trim();
-  }
-  if (typeof value.mapboxId === 'string') {
-    const mapboxId = value.mapboxId.trim();
-    if (mapboxId && mapboxId.length <= MAX_MAPBOX_ID) {
-      stop.mapboxId = mapboxId;
-    }
   }
   return stop;
 }

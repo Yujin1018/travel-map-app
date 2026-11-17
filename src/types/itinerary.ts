@@ -1,12 +1,21 @@
-/** 行程里的一个停留点。坐标是 WGS84，和 Mapbox 使用的经纬度一致。 */
+/**
+ * sample、manual 的坐标可以保存在设备上。
+ * mapbox 的坐标只留在本次打开的内存里，写入磁盘前会去掉。
+ */
+export type CoordinateSource = 'sample' | 'manual' | 'mapbox';
+
+/** 行程里的一个停留点。坐标是 WGS84。 */
 export type Stop = {
   id: string;
   name: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   note?: string;
-  /** Mapbox 返回的地点 id。用来避免把同一个地点加两次。 */
+  /** 只在本次打开时用来去重。不会写入设备。 */
   mapboxId?: string;
+  coordinateSource?: CoordinateSource;
+  /** 用户自己输入或改过的名称。搜索结果保存时用它，不用接口返回的整段文案。 */
+  userLabel?: string;
 };
 
 /** 搜索或手动输入后、还没写入行程时的地点。 */
@@ -16,6 +25,8 @@ export type PlaceDraft = {
   longitude: number;
   mapboxId?: string;
   note?: string;
+  coordinateSource?: CoordinateSource;
+  userLabel?: string;
 };
 
 /**

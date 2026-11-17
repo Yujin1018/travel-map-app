@@ -5,6 +5,7 @@ import { ActionButton } from '@/components/action-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { hasCoordinates } from '@/lib/places';
 import type { Stop } from '@/types/itinerary';
 
 export function WishlistList({
@@ -49,7 +50,9 @@ export function WishlistList({
             </ThemedText>
           ) : null}
           <ThemedText type="small" themeColor="textSecondary">
-            {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
+            {hasCoordinates(place)
+              ? `${place.latitude.toFixed(4)}, ${place.longitude.toFixed(4)}${place.coordinateSource === 'mapbox' ? ' · 仅本次打开' : ''}`
+              : '这次还没有坐标。搜索结果不会写入设备。'}
           </ThemedText>
           <View style={styles.actions}>
             {days.map((day) => (

@@ -71,7 +71,7 @@ export function FillButton({
 
 const styles = StyleSheet.create({
   action: {
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: 12,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',

@@ -37,7 +37,10 @@ test('旧存档没有想去列表时，仍然读出原来的一天', () => {
 
   assert.equal(parsed?.wishlist.length, 0);
   assert.equal(parsed?.activeDayId, 'day-kyoto');
-  assert.equal(parsed?.days[0]?.stops[0]?.mapboxId, 'poi.fushimi');
+  assert.equal(parsed?.days[0]?.stops[0]?.mapboxId, undefined);
+  assert.equal(parsed?.days[0]?.stops[0]?.latitude, undefined);
+  assert.equal(parsed?.days[0]?.stops[0]?.coordinateSource, 'mapbox');
+  assert.equal(parsed?.days[0]?.stops[0]?.name, '伏见稻荷大社');
 });
 
 test('空行程、坏坐标和重复 id 会被丢掉', () => {

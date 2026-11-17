@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   chip: {
-    minHeight: 40,
+    minHeight: 44,
     maxWidth: 220,
     borderRadius: 999,
     paddingHorizontal: Spacing.three,
